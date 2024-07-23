@@ -27,22 +27,6 @@ function getCount($tab) {
     sendJSON(['count' => $count]);
 }
 
-function saveImage($imageData) {
-    if (strpos($imageData, 'data:image/') !== 0) {
-        throw new Exception("Format d'image non valide");
-    }
-
-    $extension = explode('/', mime_content_type($imageData))[1];
-    $fileName = uniqid('services_') . '.' . $extension;
-    $targetDir = "image/";
-    $targetFile = $targetDir . $fileName;
-
-    if (file_put_contents($targetFile, base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $imageData)))) {
-        return $targetFile;
-    } else {
-        throw new Exception("Erreur lors de l'enregistrement du fichier");
-    }
-}
 
 //----------------------------------les evenement----------------------
 
@@ -300,7 +284,7 @@ function getForumById($id_forum){
         FROM forums fs
         LEFT JOIN forum f ON fs.id_forum = f.id_forum
         LEFT JOIN users u ON fs.id_user = u.id_user
-        WHERE  fs.id_forums = :id
+        WHERE  fs.id_forum = :id
     ";
     $stmt = $pdo->prepare($req);
     $stmt->bindValue(":id",$id_forum,PDO::PARAM_STR);
@@ -313,6 +297,7 @@ function getForumById($id_forum){
     foreach ($results as $row) {
         $formattedResults[] = [
             "id_forums" => $row["id_forums"],
+            "message" => $row["message"],
            "user" => [
                 "id_user" => $row["id_user"]
             ],
@@ -329,8 +314,9 @@ function getForumById($id_forum){
 }
 
 
+
 //----------------------------------users----------------------
-function generateOTP($length = 6) {
+function generateOTP($length = 4) {
     $otp = '';
     for ($i = 0; $i < $length; $i++) {
         $otp .= mt_rand(0, 9);
@@ -683,41 +669,7 @@ function upUser($data) {
 
 
 
-// Fonction pour enregistrer l'image à partir des données base64
-function saveImageFromBase64($base64Image) {
-    // Séparez la base64 de l'en-tête
-    $data = explode(',', $base64Image);
-    
-    if (count($data) != 2) {
-        throw new Exception('Format de données base64 invalide');
-    }
 
-    // Décoder les données base64
-    $imageData = base64_decode($data[1]);
-    
-    if ($imageData === false) {
-        throw new Exception('Échec du décodage des données base64');
-    }
-
-    // Déterminer le type de fichier à partir de l'en-tête
-    $imageType = '';
-    if (preg_match('/^data:image\/(\w+);base64,/', $base64Image, $matches)) {
-        $imageType = $matches[1]; // Type d'image (jpeg, png, etc.)
-    } else {
-        throw new Exception('Type d\'image base64 non reconnu');
-    }
-
-    // Générer un nom de fichier unique avec extension correspondante
-    $extension = strtolower($imageType);
-    $targetFile = 'image/' . uniqid() . '.' . $extension;
-
-    // Enregistrer l'image sur le serveur
-    if (!file_put_contents($targetFile, $imageData)) {
-        throw new Exception('Échec de l\'enregistrement de l\'image sur le serveur');
-    }
-
-    return $targetFile; // Retourner le chemin du fichier enregistré
-}
 
 
 

@@ -5,11 +5,11 @@
 
 // GetEvens....//
 // GetEntreprises....//
-// GetInforum....
+// Getforum....//
 // GetUser....//
 // GetEvenById.....//
 // GetEntrepriseById....//
-// GetInformationById....
+// GetForumById....//
 // GetEvenByMonth....//
 // GetEntrepriseByuser....//
 // GetTickets....
