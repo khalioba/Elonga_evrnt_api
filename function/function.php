@@ -65,7 +65,7 @@ function getEvents() {
             "id_event" => $row["id_event"],
             "title" => $row["title"],
             "description" => $row["description"],
-            "image" => $row["image"],
+            "image" => URL."".$row["image"],
             "date" => $row["date"],
             "address" => $row["address"],
             "value" => [
@@ -294,6 +294,38 @@ function getForum() {
 }
 
 function getForumById($id_forum){
+    $pdo = getcom();
+    $req = "
+        SELECT fs.*, f.id_forum, f.name as forum_name
+        FROM forums fs
+        LEFT JOIN forum f ON fs.id_forum = f.id_forum
+        LEFT JOIN users u ON fs.id_user = u.id_user
+        WHERE  fs.id_forums = :id
+    ";
+    $stmt = $pdo->prepare($req);
+    $stmt->bindValue(":id",$id_forum,PDO::PARAM_STR);
+    $stmt->execute();
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->closeCursor();
+
+    // Réstructurer le tableau pour inclure les informations de valu et forum
+    $formattedResults = [];
+    foreach ($results as $row) {
+        $formattedResults[] = [
+            "id_forums" => $row["id_forums"],
+           "user" => [
+                "id_user" => $row["id_user"]
+            ],
+            "forum" => [
+                "id_forum" => $row["id_forum"],
+                "forum_name" => $row["forum_name"]
+            ],
+            "created_at" => $row["created_at"],
+            "updated_at" => $row["updated_at"]
+        ];
+    }
+
+    sendJSON($formattedResults);
 }
 
 
@@ -651,119 +683,6 @@ function upUser($data) {
 
 
 
-// function upUser($data) {
-//     $pdo = getcom();
-
-//     try {
-//         // Loguer les données reçues dans la fonction
-//         error_log("Données reçues pour upUsers: " . print_r($data, true));
-
-//         // Vérifiez que les données nécessaires sont présentes
-//         if (!isset($data['tel']) || !isset($data['otp'])) {
-//             throw new Exception("Informations requises manquantes");
-//         }
-
-//         // Vérifiez d'abord si l'utilisateur existe
-//         $req = "SELECT * FROM `users` WHERE tel = :tel AND otp = :otp";
-//         $stmt = $pdo->prepare($req);
-//         $stmt->bindValue(":tel", $data['tel'], PDO::PARAM_STR);
-//         $stmt->bindValue(":otp", $data['otp'], PDO::PARAM_STR);
-//         $stmt->execute();
-//         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-//         $stmt->closeCursor();
-
-//         if (empty($results)) {
-//             throw new Exception("Utilisateur non trouvé ou OTP incorrect");
-//         }
-
-//         // Construction dynamique de la requête UPDATE
-//         $updateFields = [];
-//         $updateValues = [];
-
-//         if (!empty($data['name'])) {
-//             $updateFields[] = "name = :name";
-//             $updateValues[':name'] = $data['name'];
-//         }
-//         if (!empty($data['first_name'])) {
-//             $updateFields[] = "first_name = :first_name";
-//             $updateValues[':first_name'] = $data['first_name'];
-//         }
-//         if (!empty($data['title'])) {
-//             $updateFields[] = "title = :title";
-//             $updateValues[':title'] = $data['title'];
-//         }
-//         if (!empty($data['email'])) {
-//             $updateFields[] = "email = :email";
-//             $updateValues[':email'] = $data['email'];
-//         }
-//         if (!empty($data['age'])) {
-//             $updateFields[] = "age = :age";
-//             $updateValues[':age'] = $data['age'];
-//         }
-//         if (!empty($data['gender'])) {
-//             $updateFields[] = "genre = :gender";
-//             $updateValues[':gender'] = $data['gender'];
-//         }
-//         if (!empty($data['ville'])) {
-//             $updateFields[] = "ville = :ville";
-//             $updateValues[':ville'] = $data['ville'];
-//         }
-
-//         // Gestion de la photo de profil
-//         if (!empty($data['profile_picture'])) {
-//             // Décoder l'image base64
-//             $imageParts = explode(";base64,", $data['profile_picture']);
-//             if (count($imageParts) === 2) {
-//                 $imageTypeAux = explode("image/", $imageParts[0]);
-//                 $imageType = $imageTypeAux[1];
-//                 $imageBase64 = base64_decode($imageParts[1]);
-//                 if ($imageBase64 === false) {
-//                     throw new Exception("Erreur lors du décodage de l'image");
-//                 }
-
-//                 // Générer un nom de fichier unique et sauvegarder l'image
-//                 $filePath = 'image/' . uniqid() . '.' . $imageType;
-//                 if (file_put_contents($filePath, $imageBase64) === false) {
-//                     throw new Exception("Erreur lors de la sauvegarde de l'image");
-//                 }
-//                 $updateFields[] = "profil = :profile_picture";
-//                 $updateValues[':profile_picture'] = $filePath;
-//             } else {
-//                 throw new Exception("Format d'image base64 invalide");
-//             }
-//         }
-
-//         if (!empty($updateFields)) {
-//             $updateReq = "UPDATE `users` SET " . implode(", ", $updateFields) . " WHERE tel = :tel AND otp = :otp";
-//             $updateStmt = $pdo->prepare($updateReq);
-//             foreach ($updateValues as $placeholder => $value) {
-//                 $updateStmt->bindValue($placeholder, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
-//             }
-//             $updateStmt->bindValue(":tel", $data['tel'], PDO::PARAM_STR);
-//             $updateStmt->bindValue(":otp", $data['otp'], PDO::PARAM_STR);
-//             $updateStmt->execute();
-//             $updateStmt->closeCursor();
-
-//             $response = [
-//                 "status" => "success",
-//                 "message" => "Informations de l'utilisateur mises à jour avec succès"
-//             ];
-//             return $response;
-//         } else {
-//             throw new Exception("Aucune donnée à mettre à jour");
-//         }
-//     } catch (Exception $e) {
-//         error_log("Erreur dans upUsers: " . $e->getMessage());
-//         $response = [
-//             "status" => "error",
-//             "message" => $e->getMessage()
-//         ];
-//         return $response;
-//     }
-// }
-
-
-
 // Fonction pour enregistrer l'image à partir des données base64
 function saveImageFromBase64($base64Image) {
     // Séparez la base64 de l'en-tête
@@ -800,25 +719,6 @@ function saveImageFromBase64($base64Image) {
     return $targetFile; // Retourner le chemin du fichier enregistré
 }
 
-
-
-
-
-
-
-
-
-// $req = "
-//     SELECT e.*, v.id_value, v.value, t.id_ticket, t.name as ticket_name, t.price, t.description as ticket_description, 
-//             c.id_company, c.name as company_name, c.type, c.description as company_description, c.tel, c.maps, c.email, c.web_site,
-//             u.id_user, u.name as user_name, u.title as user_title, u.first_name, u.email as user_email, u.tel as user_tel, u.genre, u.age
-//     FROM events e
-//     LEFT JOIN valu v ON e.id_value = v.id_value
-//     LEFT JOIN tickets t ON e.id_event = t.id_event
-//     LEFT JOIN company c ON e.id_event = c.id_event
-//     LEFT JOIN users u ON e.id_event = u.id_event
-//     WHERE MONTH(e.date) = :month AND YEAR(e.date) = :year
-// ";
 
 
 

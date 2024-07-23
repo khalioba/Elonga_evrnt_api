@@ -43,9 +43,17 @@ try {
                 }
                 break;
             //---------------
-            case 'forum':
+            case 'forums':
                 if (empty($url[1])) {
                     getForum();
+                } else {
+                    throw new Exception("...");
+                }
+                break;
+            //---------------
+            case 'forum':
+                if (!empty($url[1])) {
+                    getForumById($url[1]);
                 } else {
                     throw new Exception("Pas d'id");
                 }
