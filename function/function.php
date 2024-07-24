@@ -7,6 +7,7 @@ define("URL", str_replace("index.php","",(isset($_SERVER['HTTPS'])? "https" : "h
 function getcom(){
     return new PDO("mysql:host=localhost;dbname=matsuri;charset=utf8","root","");
 }
+
 // la sortie en json
 function sendJSON($info){
     header("Access-Control-Allow-Origin: *");
@@ -14,6 +15,7 @@ function sendJSON($info){
     
     echo json_encode($info,JSON_UNESCAPED_UNICODE);
 }
+
 // Count
 function getCount($tab) {
     $pdo = getcom();
@@ -668,11 +670,119 @@ function upUser($data) {
 
 
 
+//----------------------------------tickets----------------------
+function getTickets() {
+    $pdo = getcom();
+    $req = "
+        SELECT t.*, e.id_event, e.title, e.image, e.description as description_event, e.date 
+        FROM tickets t
+        LEFT JOIN events e ON t.id_event = e.id_event
+        ";
+    $stmt = $pdo->prepare($req);
+    $stmt->execute();
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->closeCursor();
 
+    // Réstructurer le tableau pour inclure les informations de valu
+    $formattedResults = [];
+    foreach ($results as $row) {
+        $formattedResults[] = [
+            "id_tickets" => $row["id_tickets"],
+            "name" => $row["name"],
+            "price" => $row["price"],
+            "description" => $row["description"],
+            "statu" => $row["statu"],
+            "events" => [
+                "id_event" => $row["id_event"],
+                "title" => $row["title"],
+                "description_event" => $row["description_event"],
+                "image" => $row["image"],
+                "date" => $row["date"]
+            ],
+            "created_at" => $row["created_at"],
+            "updated_at" => $row["updated_at"]
+        ];
+    }
+    sendJSON($formattedResults);
+}
 
+function getTicketById($id_event) {
+    $pdo = getcom();
+    $req = "
+        SELECT t.*, e.id_event, e.title, e.image, e.description as description_event, e.date 
+        FROM tickets t
+        LEFT JOIN events e ON t.id_event = e.id_event
+        WHERE e.id_event = :id
+        ";
+    $stmt = $pdo->prepare($req);
+    $stmt->bindValue(":id",$id_event,PDO::PARAM_STR);
+    $stmt->execute();
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->closeCursor();
 
+    // Réstructurer le tableau pour inclure les informations de valu
+    $formattedResults = [];
+    foreach ($results as $row) {
+        $formattedResults[] = [
+            "id_tickets" => $row["id_tickets"],
+            "name" => $row["name"],
+            "price" => $row["price"],
+            "description" => $row["description"],
+            "statu" => $row["statu"],
+            "events" => [
+                "id_event" => $row["id_event"],
+                "title" => $row["title"],
+                "description_event" => $row["description_event"],
+                "image" => $row["image"],
+                "date" => $row["date"]
+            ],
+            "created_at" => $row["created_at"],
+            "updated_at" => $row["updated_at"]
+        ];
+    }
+    sendJSON($formattedResults);
+}
 
+function getTicket($user) {
+    $pdo = getcom();
+    $req = "
+        SELECT t.*, u.id_user, e.id_event, e.title, e.image, e.description as description_event, e.date, ti.statu as statu_tickrt, ti.id_ticket
+        FROM tickets t
+        LEFT JOIN events e ON t.id_event = e.id_event
+        LEFT JOIN ticket ti ON ti.id_tickets = t.id_tickets
+        LEFT JOIN users u ON ti.id_user = u.id_user
+        WHERE u.id_user = :id
+        ";
+    $stmt = $pdo->prepare($req);
+    $stmt->bindValue(":id",$user,PDO::PARAM_STR);
+    $stmt->execute();
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->closeCursor();
 
-
-
-
+    // Réstructurer le tableau pour inclure les informations de valu
+    $formattedResults = [];
+    foreach ($results as $row) {
+        $formattedResults[] = [
+            "id_tickets" => $row["id_tickets"],
+            "name" => $row["name"],
+            "price" => $row["price"],
+            "description" => $row["description"],
+            "statu" => $row["statu"],
+            "events" => [
+                "id_event" => $row["id_event"],
+                "title" => $row["title"],
+                "description_event" => $row["description_event"],
+                "image" => $row["image"],
+                "date" => $row["date"]
+            ],
+            "ticket" => [
+                "id_ticket" => $row["id_tickets"],
+                "statu_tickrt" => $row["statu_tickrt"]
+                
+            ],
+            "created_at" => $row["created_at"],
+            "updated_at" => $row["updated_at"]
+        ];
+    }
+    sendJSON($formattedResults);
+}

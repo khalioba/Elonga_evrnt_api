@@ -26,7 +26,7 @@ try {
                     throw new Exception("Pas d'id d'objet fourni");
                 }
                 break;
-            //---------------
+            //---------------//
             case 'companys':
                 if (empty($url[1])) {
                     getConpany();
@@ -42,7 +42,7 @@ try {
                     throw new Exception("Pas d'id");
                 }
                 break;
-            //---------------
+            //---------------//
             case 'forums':
                 if (empty($url[1])) {
                     getForum();
@@ -58,10 +58,26 @@ try {
                     throw new Exception("Pas d'id");
                 }
                 break;
-            //---------------
+            //---------------//
             case 'getuser':
                 if (!empty($url[1])) {
                     app($url[1],$url[2]);
+                } else {
+                    throw new Exception("Pas d'id");
+                }
+                break;
+            //---------------//
+            case 'tickets':
+                if (empty($url[1])) {
+                    getTickets();
+                } else {
+                    getTicketById($url[1]);
+                }
+                break;
+            //---------------
+            case 'ticket':
+                if (!empty($url[1])) {
+                    getTicket($url[1]);
                 } else {
                     throw new Exception("Pas d'id");
                 }

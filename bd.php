@@ -14,6 +14,7 @@ try {
     date DATE,
     address VARCHAR(255),
     id_value INT,
+    statu INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )";
@@ -30,21 +31,11 @@ try {
     name VARCHAR(255) NOT NULL,
     price INT,
     description TEXT,
-    id_event INT,
-    FOREIGN KEY (id_event) REFERENCES events(id_event),
+    statu INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )";
 
-    $achat_ticket = "CREATE TABLE achat_ticket (
-    id_achat INT AUTO_INCREMENT PRIMARY KEY,
-    id_ticket INT,
-    id_user INT,
-    FOREIGN KEY (id_ticket) REFERENCES tickets(id_ticket),
-    FOREIGN KEY (id_user) REFERENCES users(id_user),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-)";
 
     $company = "CREATE TABLE company (
     id_company INT AUTO_INCREMENT PRIMARY KEY,
@@ -104,16 +95,27 @@ $forum = "CREATE TABLE forum (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )";
 
+$ticket = "CREATE TABLE ticket (
+    id_ticket INT AUTO_INCREMENT PRIMARY KEY,
+    id_tickets INT,
+    id_user INT,
+    statu INT,
+    FOREIGN KEY (id_tickets) REFERENCES tickets(id_tickets),
+    FOREIGN KEY (id_user) REFERENCES users(id_user),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+)";
+
     // Execute the SQL statements
     $pdo->exec($event);
     $pdo->exec($valu);
     $pdo->exec($tickets);
     $pdo->exec($users);
-    $pdo->exec($achat_ticket);
     $pdo->exec($company);
     $pdo->exec($image_company);
     $pdo->exec($forums);
     $pdo->exec($forum);
+    $pdo->exec($ticket);
     
 
     echo "Tables created successfully";
