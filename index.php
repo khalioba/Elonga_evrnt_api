@@ -71,13 +71,13 @@ try {
                 if (empty($url[1])) {
                     getTickets();
                 } else {
-                    getTicketById($url[1]);
+                    getTicketByIdEvent($url[1]);
                 }
                 break;
             //---------------
             case 'ticket':
                 if (!empty($url[1])) {
-                    getTicket($url[1]);
+                    getTicketByUsers($url[1]);
                 } else {
                     throw new Exception("Pas d'id");
                 }
@@ -90,27 +90,34 @@ try {
     } 
     
     
-    
-    
-    
- elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Handling POST requests
-    $inputJSON = file_get_contents('php://input');
-    $postData = json_decode($inputJSON, true);
+    elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $inputJSON = file_get_contents('php://input');
+        $postData = json_decode($inputJSON, true);
 
-    if (!empty($postData['api'])) {
-        $url = explode("/", filter_var($postData['api'], FILTER_SANITIZE_URL));
+        // Loguer les données reçues
+        error_log("POST data: " . print_r($postData, true));
+
+        if (!empty($postData['api'])) {
+            $url = explode("/", filter_var($postData['api'], FILTER_SANITIZE_URL));
         switch ($url[0]) {
             case 'createuser':
                 if (!empty($postData['data'])) {
-                    $result = createUser($postData['data']); // Call to createUser function
-                    sendJSON($result); // Send response to client
+                    $result = createUser($postData['data']);
+                    sendJSON($result);
                 } else {
                     throw new Exception("Données manquantes pour la création d'un utilisateur");
                 }
                 break;
-            //---------------
-            //---------------UPDATE 
+            
+            case 'createvent':
+                if (!empty($postData['data'])) {
+                    $result = postEvent($postData['data']);
+                    sendJSON($result);
+                } else {
+                    throw new Exception("Données manquantes pour la création d'un événement");
+                }
+                break;
+    
             case 'updateusers':
                 if (!empty($postData['data'])) {
                     $result = upUsers($postData['data']);
@@ -119,7 +126,7 @@ try {
                     throw new Exception("Données manquantes pour la mise à jour de l'utilisateur");
                 }
                 break;
-            //---------------
+    
             case 'updateuser':
                 if (!empty($postData['data'])) {
                     $result = upUser($postData['data']);
@@ -128,13 +135,14 @@ try {
                     throw new Exception("Données manquantes pour la mise à jour de l'utilisateur");
                 }
                 break;
-            //---------------
+    
             default:
                 throw new Exception("La demande POST n'est pas valide");
         }
     } else {
         throw new Exception("Problème de récupération de l'API");
     }
+    
     } else {
         throw new Exception("Méthode non autorisée");
     }

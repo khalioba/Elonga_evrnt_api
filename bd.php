@@ -15,16 +15,17 @@ try {
     address VARCHAR(255),
     id_value INT,
     statu INT,
+    id_company INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-)";
+    )";
 
     $valu = "CREATE TABLE valu (
     id_value INT AUTO_INCREMENT PRIMARY KEY,
     value VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-)";
+    )";
 
     $tickets = "CREATE TABLE tickets (
     id_ticket INT AUTO_INCREMENT PRIMARY KEY,
@@ -34,7 +35,7 @@ try {
     statu INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-)";
+    )";
 
 
     $company = "CREATE TABLE company (
@@ -50,7 +51,7 @@ try {
     web_site VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-)";
+    )";
 
     $image_company = "CREATE TABLE image_company (
     id_image INT AUTO_INCREMENT PRIMARY KEY,
@@ -60,7 +61,7 @@ try {
     FOREIGN KEY (id_company) REFERENCES company(id_company),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-)";
+    )";
 
     $forums = "CREATE TABLE forums (
     id_forum INT AUTO_INCREMENT PRIMARY KEY,
@@ -71,7 +72,7 @@ try {
     FOREIGN KEY (id_user) REFERENCES users(id_user),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-)";
+    )";
 
     $users = "CREATE TABLE users (
     id_user INT AUTO_INCREMENT PRIMARY KEY,
@@ -80,22 +81,25 @@ try {
     first_name VARCHAR(255),
     email VARCHAR(255) NOT NULL,
     tel VARCHAR(20),
+    otp INT,
+    ville VARCHAR(255),
+    provil VARCHAR(255),
     genre VARCHAR(50),
     age INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-)";
+    )";
 
-$forum = "CREATE TABLE forum (
+    $forum = "CREATE TABLE forum (
     id_forum INT AUTO_INCREMENT PRIMARY KEY,
     id_event INT,
     name VARCHAR(255) NOT NULL,
     FOREIGN KEY (id_event) REFERENCES events(id_event),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-)";
+    )";
 
-$ticket = "CREATE TABLE ticket (
+    $ticket = "CREATE TABLE ticket (
     id_ticket INT AUTO_INCREMENT PRIMARY KEY,
     id_tickets INT,
     id_user INT,
@@ -104,7 +108,7 @@ $ticket = "CREATE TABLE ticket (
     FOREIGN KEY (id_user) REFERENCES users(id_user),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-)";
+    )";
 
     // Execute the SQL statements
     $pdo->exec($event);

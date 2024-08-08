@@ -3,17 +3,16 @@
 define("URL", str_replace("index.php","",(isset($_SERVER['HTTPS'])? "https" : "http").
 "://".$_SERVER['HTTP_HOST'].$_SERVER["PHP_SELF"]));
 
-// cconnexion à la basse de donner
+// cconnexion à la basse de donner en ligne
 function getcom(){
+    // return new PDO("mysql:host=localhost;dbname=u246153201_db_elonga;charset=utf8","u246153201_db_elonga","Mot2paSSe");
+
     return new PDO("mysql:host=localhost;dbname=matsuri;charset=utf8","root","");
 }
-
-// la sortie en json
-function sendJSON($info){
-    header("Access-Control-Allow-Origin: *");
-    header("Content-Type: application/json");
-    
-    echo json_encode($info,JSON_UNESCAPED_UNICODE);
+function sendJSON($data) {
+    header('Content-Type: application/json');
+    echo json_encode($data);
+    exit; // Assurez-vous que rien d'autre n'est envoyé après la réponse JSON
 }
 
 // Count
@@ -29,8 +28,34 @@ function getCount($tab) {
     sendJSON(['count' => $count]);
 }
 
+function saveProfileImage($imageData) {
+    if (strpos($imageData, 'data:image/') !== 0 || !preg_match('#^data:image/\w+;base64,#i', $imageData)) {
+        throw new Exception("Format d'image non valide");
+    }
+
+    $extension = explode('/', mime_content_type($imageData))[1];
+    $fileName = uniqid('profile_') . '.' . $extension;
+    $targetDir = "image/";
+    $targetFile = $targetDir . $fileName;
+
+    $imageData = str_replace(' ', '+', $imageData);
+    $base64Str = preg_replace('#^data:image/\w+;base64,#i', '', $imageData);
+    $decodedData = base64_decode($base64Str);
+
+    if ($decodedData === false) {
+        throw new Exception("Décodage de l'image échoué");
+    }
+
+    if (file_put_contents($targetFile, $decodedData) === false) {
+        throw new Exception("Échec de la sauvegarde de l'image");
+    }
+
+    return $targetFile;
+}
 
 //----------------------------------les evenement----------------------
+
+//------GET
 
 function getEvents() {
     $pdo = getcom();
@@ -69,9 +94,10 @@ function getEvents() {
 function getEventById($id_event){
     $pdo = getcom();
     $req = "
-        SELECT e.*, v.id_value, v.value
+        SELECT e.*, v.id_value, v.value, c.id_company, c.name, c.logo
         FROM events e
         LEFT JOIN valu v ON e.id_value = v.id_value
+        LEFT JOIN company c ON e.id_company = C.id_company
     WHERE  e.id_event = :id";
     $stmt = $pdo->prepare($req);
     $stmt->bindValue(":id",$id_event,PDO::PARAM_STR);
@@ -86,12 +112,17 @@ function getEventById($id_event){
             "id_event" => $row["id_event"],
             "title" => $row["title"],
             "description" => $row["description"],
-            "image" => $row["image"],
+            "image" =>  URL."".$row["image"],
             "date" => $row["date"],
             "address" => $row["address"],
             "value" => [
                 "id_value" => $row["id_value"],
                 "value" => $row["value"]
+            ],
+            "company" => [
+                "id_company" => $row["id_company"],
+                "name_company" => $row["name"],
+                "logo_company" =>  URL."".$row["logo"],
             ],
             "created_at" => $row["created_at"],
             "updated_at" => $row["updated_at"]
@@ -144,6 +175,48 @@ function getEventsByMonth($mois) {
 
     sendJSON($formattedResults);
 } 
+
+//------POST
+
+function postEvent($data){
+    $pdo = getcom();
+    try {
+        // Loguer les données reçues dans la fonction
+        error_log("Données reçues pour createServices: " . print_r($data, true));
+
+        // Vérifiez que les données nécessaires sont présentes
+        if (!isset($data['title']) || !isset($data['description']) || !isset($data['image'])) {
+            throw new Exception("Informations requises manquantes");
+        }
+
+        // Enregistrez l'image
+        $targetFile = saveProfileImage($data['image']);
+
+        // Préparez la requête d'insertion avec trois paramètres de liaison
+        $sql = "INSERT INTO events (title, description, image) VALUES (?, ?, ?)";
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindParam(1, $data['title']);
+        $stmt->bindParam(2, $data['description']);
+        $stmt->bindParam(3, $targetFile);
+
+        $stmt->execute();
+
+        $response = [
+            "status" => "success",
+            "message" => "Événement créé avec succès"
+        ];
+        return $response;
+    } catch (Exception $e) {
+        error_log("Erreur dans createServices: " . $e->getMessage());
+        $response = [
+            "status" => "error",
+            "message" => $e->getMessage()
+        ];
+        return $response;
+    }
+}
+
+
 //----------------------------------les entreprise----------------------
 
 function getConpany() {
@@ -314,8 +387,6 @@ function getForumById($id_forum){
 
     sendJSON($formattedResults);
 }
-
-
 
 //----------------------------------users----------------------
 function generateOTP($length = 4) {
@@ -669,7 +740,6 @@ function upUser($data) {
 }
 
 
-
 //----------------------------------tickets----------------------
 function getTickets() {
     $pdo = getcom();
@@ -706,7 +776,7 @@ function getTickets() {
     sendJSON($formattedResults);
 }
 
-function getTicketById($id_event) {
+function getTicketByIdEvent($id_event) {
     $pdo = getcom();
     $req = "
         SELECT t.*, e.id_event, e.title, e.image, e.description as description_event, e.date 
@@ -743,7 +813,7 @@ function getTicketById($id_event) {
     sendJSON($formattedResults);
 }
 
-function getTicket($user) {
+function getTicketByUsers($user) {
     $pdo = getcom();
     $req = "
         SELECT t.*, u.id_user, e.id_event, e.title, e.image, e.description as description_event, e.date, ti.statu as statu_tickrt, ti.id_ticket
@@ -786,3 +856,5 @@ function getTicket($user) {
     }
     sendJSON($formattedResults);
 }
+
+//--------------------------------------------------------

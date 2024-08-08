@@ -13,6 +13,8 @@
 // GetEvenByMonth....//
 // GetEntrepriseByuser....//
 // GetTickets....//
+// GetTicketsByUsers....//
+// GetTicketsByevent....//
 
 
 
