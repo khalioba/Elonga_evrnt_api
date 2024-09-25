@@ -102,12 +102,11 @@ function getEventById($id_event){
     $stmt = $pdo->prepare($req);
     $stmt->bindValue(":id",$id_event,PDO::PARAM_STR);
     $stmt->execute();
-    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $row = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $stmt->closeCursor();
 
     // Réstructurer le tableau pour inclure les informations de valu
-    $formattedResults = [];
-    foreach ($results as $row) {
+    if ($row) {
         $formattedResults[] = [
             "id_event" => $row["id_event"],
             "title" => $row["title"],
@@ -197,7 +196,12 @@ function postEvent($data){
         $stmt = $pdo->prepare($sql);
         $stmt->bindParam(1, $data['title']);
         $stmt->bindParam(2, $data['description']);
-        $stmt->bindParam(3, $targetFile);
+        $stmt->bindParam(3, $data['description']);
+        $stmt->bindParam(4, $data['description']);
+        $stmt->bindParam(5, $data['description']);
+        $stmt->bindParam(2, $data['description']);
+        $stmt->bindParam(7, $data['description']);
+        $stmt->bindParam(8, $targetFile);
 
         $stmt->execute();
 
@@ -254,12 +258,11 @@ function getConpanyByNumber($numbre) {
     $stmt = $pdo->prepare($req);
     $stmt->bindValue(":number",$numbre,PDO::PARAM_STR);
     $stmt->execute();
-    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $row = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $stmt->closeCursor();
 
     // Réstructurer le tableau pour inclure les informations de valu
-    $formattedResults = [];
-    foreach ($results as $row) {
+   if ($row) {
         $formattedResults[] = [
             "id_company" => $row["id_company"],
             "name" => $row["name"],
@@ -285,12 +288,11 @@ function getConpanyById($id_company) {
     $stmt = $pdo->prepare($req);
     $stmt->bindValue(":id_company",$id_company,PDO::PARAM_STR);
     $stmt->execute();
-    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $row = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $stmt->closeCursor();
 
     // Réstructurer le tableau pour inclure les informations de valu
-    $formattedResults = [];
-    foreach ($results as $row) {
+    if ( $row) {
         $formattedResults[] = [
             "id_company" => $row["id_company"],
             "name" => $row["name"],
@@ -364,12 +366,11 @@ function getForumById($id_forum){
     $stmt = $pdo->prepare($req);
     $stmt->bindValue(":id",$id_forum,PDO::PARAM_STR);
     $stmt->execute();
-    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $row = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $stmt->closeCursor();
 
     // Réstructurer le tableau pour inclure les informations de valu et forum
-    $formattedResults = [];
-    foreach ($results as $row) {
+    if ($row) {
         $formattedResults[] = [
             "id_forums" => $row["id_forums"],
             "message" => $row["message"],
