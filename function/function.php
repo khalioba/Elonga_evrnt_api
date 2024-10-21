@@ -60,9 +60,11 @@ function saveProfileImage($imageData) {
 function getEvents() {
     $pdo = getcom();
     $req = "
-        SELECT e.*, v.id_value, v.value
+        SELECT e.*, v.id_value, v.value, c.id_company, c.name AS name_company, c.logo AS logo_company
+
         FROM events e
         LEFT JOIN valu v ON e.id_value = v.id_value
+        LEFT JOIN company c ON e.id_company = C.id_company
     ";
     $stmt = $pdo->prepare($req);
     $stmt->execute();
@@ -76,12 +78,18 @@ function getEvents() {
             "id_event" => $row["id_event"],
             "title" => $row["title"],
             "description" => $row["description"],
-            "image" => URL."".$row["image"],
+            "image" => URL . "image/" . $row["image"],
             "date" => $row["date"],
             "address" => $row["address"],
+            "statu" => $row["statu"],
             "value" => [
                 "id_value" => $row["id_value"],
                 "value" => $row["value"]
+            ],
+            "company" => [
+                "id_company" => $row["id_company"],
+                "name_company" => $row["name_company"],
+                "logo_company" => URL . "" . $row["logo_company"],
             ],
             "created_at" => $row["created_at"],
             "updated_at" => $row["updated_at"]
@@ -94,7 +102,8 @@ function getEvents() {
 function getEventById($id_event){
     $pdo = getcom();
     $req = "
-        SELECT e.*, v.id_value, v.value, c.id_company, c.name, c.logo
+        SELECT e.*, v.id_value, v.value, c.id_company, c.name AS name_company, c.logo AS logo_company
+
         FROM events e
         LEFT JOIN valu v ON e.id_value = v.id_value
         LEFT JOIN company c ON e.id_company = C.id_company
@@ -102,26 +111,28 @@ function getEventById($id_event){
     $stmt = $pdo->prepare($req);
     $stmt->bindValue(":id",$id_event,PDO::PARAM_STR);
     $stmt->execute();
-    $row = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $stmt->closeCursor();
 
     // Réstructurer le tableau pour inclure les informations de valu
-    if ($row) {
-        $formattedResults[] = [
+    $formattedResults = [];
+    foreach ($results as $row) {
+        $formattedResults = [
             "id_event" => $row["id_event"],
             "title" => $row["title"],
             "description" => $row["description"],
-            "image" =>  URL."".$row["image"],
+            "image" => URL . "image/" . $row["image"],
             "date" => $row["date"],
             "address" => $row["address"],
+            "statu" => $row["statu"],
             "value" => [
                 "id_value" => $row["id_value"],
                 "value" => $row["value"]
             ],
             "company" => [
                 "id_company" => $row["id_company"],
-                "name_company" => $row["name"],
-                "logo_company" =>  URL."".$row["logo"],
+                "name_company" => $row["name_company"],
+                "logo_company" => URL . "" . $row["logo_company"],
             ],
             "created_at" => $row["created_at"],
             "updated_at" => $row["updated_at"]
@@ -131,24 +142,25 @@ function getEventById($id_event){
     sendJSON($formattedResults);
 }
 
-function getEventsByMonth($mois) {
+function getEventsByMonths($mois) {
     $pdo = getcom();
 
-    // Obtenez le mois et l'année actuels
+    // Obtenez le mois actuel (le mois est fourni en argument)
     $currentMonth = $mois;
-    $currentYear = date('Y');
 
-    // Requête SQL avec filtrage par mois et année
+    // Requête SQL avec filtrage par mois uniquement
     $req = "
         SELECT e.*, v.id_value, v.value
         FROM events e
         LEFT JOIN valu v ON e.id_value = v.id_value
-        WHERE MONTH(e.date) = :month AND YEAR(e.date) = :year
+        WHERE MONTH(e.date) = :month
     ";
 
+    // Préparer la requête
     $stmt = $pdo->prepare($req);
     $stmt->bindParam(':month', $currentMonth, PDO::PARAM_INT);
-    $stmt->bindParam(':year', $currentYear, PDO::PARAM_INT);
+    
+    // Exécuter la requête
     $stmt->execute();
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $stmt->closeCursor();
@@ -160,7 +172,7 @@ function getEventsByMonth($mois) {
             "id_event" => $row["id_event"],
             "title" => $row["title"],
             "description" => $row["description"],
-            "image" => $row["image"],
+            "image" => URL . "image/" . $row["image"],
             "date" => $row["date"],
             "address" => $row["address"],
             "value" => [
@@ -172,8 +184,69 @@ function getEventsByMonth($mois) {
         ];
     }
 
+    // Envoyer les résultats sous format JSON
     sendJSON($formattedResults);
-} 
+}
+
+function getEventsByCurrentMonth() {
+    $pdo = getcom();
+    $req = "
+        SELECT e.*, v.id_value, v.value
+        FROM events e
+        LEFT JOIN valu v ON e.id_value = v.id_value
+    ";
+    $stmt = $pdo->prepare($req);
+    $stmt->execute();
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->closeCursor();
+
+    // Obtenir la date actuelle
+    $currentDate = new DateTime();
+
+    // Structure pour regrouper les événements par mois
+    $eventsByMonth = [];
+
+    foreach ($results as $row) {
+        $eventDate = new DateTime($row["date"]);
+        
+        // Ne conserver que les événements dans le futur
+        if ($eventDate > $currentDate) {
+            $eventMonth = $eventDate->format('F'); // Récupère le nom du mois en lettres (ex: January, February)
+
+            // Regrouper les événements par mois
+            if (!isset($eventsByMonth[$eventMonth])) {
+                $eventsByMonth[$eventMonth] = []; // Crée un tableau pour chaque mois
+            }
+
+            // Ajouter l'événement à son mois correspondant
+            $eventsByMonth[$eventMonth][] = [
+                "id_event" => $row["id_event"],
+                "title" => $row["title"],
+                "description" => $row["description"],
+                "image" => URL."image/".$row["image"],
+                "date" => $row["date"],
+                "address" => $row["address"],
+                "value" => [
+                    "id_value" => $row["id_value"],
+                    "value" => $row["value"]
+                ],
+                "created_at" => $row["created_at"],
+                "updated_at" => $row["updated_at"]
+            ];
+        }
+    }
+
+    // Boucler sur chaque mois et afficher les événements correspondants
+    $formattedResults = [];
+    foreach ($eventsByMonth as $month => $events) {
+        $formattedResults[] = [
+            "month" => $month,
+            "events" => $events
+        ];
+    }
+
+    sendJSON($formattedResults);
+}
 
 //------POST
 
@@ -220,7 +293,6 @@ function postEvent($data){
     }
 }
 
-
 //----------------------------------les entreprise----------------------
 
 function getConpany() {
@@ -239,8 +311,8 @@ function getConpany() {
             "name" => $row["name"],
             "type" => $row["type"],
             "description" => $row["description"],
-            "image" => $row["image"],
-            "logo" => $row["logo"],
+            "image" => URL."image/".$row["image"],
+            "logo" => URL."image/".$row["logo"],
             "tel" => $row["tel"],
             "maps" => $row["maps"],
             "email" => $row["email"],
@@ -258,18 +330,19 @@ function getConpanyByNumber($numbre) {
     $stmt = $pdo->prepare($req);
     $stmt->bindValue(":number",$numbre,PDO::PARAM_STR);
     $stmt->execute();
-    $row = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $stmt->closeCursor();
 
     // Réstructurer le tableau pour inclure les informations de valu
-   if ($row) {
-        $formattedResults[] = [
+    $formattedResults = [];
+    foreach ($results as $row) {
+        $formattedResults = [
             "id_company" => $row["id_company"],
             "name" => $row["name"],
             "type" => $row["type"],
             "description" => $row["description"],
-            "image" => $row["image"],
-            "logo" => $row["logo"],
+            "image" => URL."image/".$row["image"],
+            "logo" => URL."image/".$row["logo"],
             "tel" => $row["tel"],
             "maps" => $row["maps"],
             "email" => $row["email"],
@@ -278,7 +351,6 @@ function getConpanyByNumber($numbre) {
             "updated_at" => $row["updated_at"]
         ];
     }
-
     sendJSON($formattedResults);
 }
 
@@ -288,18 +360,19 @@ function getConpanyById($id_company) {
     $stmt = $pdo->prepare($req);
     $stmt->bindValue(":id_company",$id_company,PDO::PARAM_STR);
     $stmt->execute();
-    $row = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $stmt->closeCursor();
 
     // Réstructurer le tableau pour inclure les informations de valu
-    if ( $row) {
-        $formattedResults[] = [
+    $formattedResults = [];
+    foreach ($results as $row) {
+        $formattedResults = [
             "id_company" => $row["id_company"],
             "name" => $row["name"],
             "type" => $row["type"],
             "description" => $row["description"],
-            "image" => $row["image"],
-            "logo" => $row["logo"],
+            "image" => URL."image/".$row["image"],
+            "logo" => URL."image/".$row["logo"],
             "tel" => $row["tel"],
             "maps" => $row["maps"],
             "email" => $row["email"],
@@ -308,88 +381,133 @@ function getConpanyById($id_company) {
             "updated_at" => $row["updated_at"]
         ];
     }
-
     sendJSON($formattedResults);
 }
-
 
 //----------------------------------les forum----------------------
 
 function getForum() {
     $pdo = getcom();
     $req = "
-        SELECT e.*, v.id_value, v.value, f.id_forum, f.name as forum_name
-        FROM events e
-        LEFT JOIN valu v ON e.id_value = v.id_value
-        LEFT JOIN forum f ON e.id_event = f.id_event
+        SELECT f.id_forum, fs.id_forums, fs.message, u.id_user, u.name as user_name, u.first_name, u.profil,
+               e.id_event, e.title as event_title, e.description as event_description, e.image as event_image, e.date as event_date, 
+               f.created_at, f.updated_at
+        FROM forum f
+        LEFT JOIN forums fs ON fs.id_forum = f.id_forum
+        LEFT JOIN users u ON fs.id_user = u.id_user
+        LEFT JOIN events e ON f.id_event = e.id_event
     ";
     $stmt = $pdo->prepare($req);
     $stmt->execute();
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $stmt->closeCursor();
 
-    // Réstructurer le tableau pour inclure les informations de valu et forum
     $formattedResults = [];
+    $forumsMap = [];
+
     foreach ($results as $row) {
-        $formattedResults[] = [
-            "id_event" => $row["id_event"],
-            "title" => $row["title"],
-            "description" => $row["description"],
-            "image" => $row["image"],
-            "date" => $row["date"],
-            "address" => $row["address"],
-            "value" => [
-                "id_value" => $row["id_value"],
-                "value" => $row["value"]
-            ],
-            "forum" => [
+        // Vérifier si ce forum a déjà été ajouté pour cet id_forum
+        if (!isset($forumsMap[$row["id_forum"]])) {
+            // Initialiser les informations du forum avec un tableau de forums vide
+            $forumsMap[$row["id_forum"]] = [
                 "id_forum" => $row["id_forum"],
-                "forum_name" => $row["forum_name"]
-            ],
-            "created_at" => $row["created_at"],
-            "updated_at" => $row["updated_at"]
-        ];
+                "event" => [
+                    "id_event" => $row["id_event"],
+                    "event_title" => $row["event_title"],
+                    "event_description" => $row["event_description"],
+                    "event_image" => URL . "image/" . $row["event_image"],
+                    "event_date" => $row["event_date"]
+                ],
+                    "forums" => [],
+                    "created_at" => $row["created_at"],
+                    "updated_at" => $row["updated_at"]
+                ];
+        }
+
+        // Ajouter le message forum au tableau des forums pour ce forum
+        if (!empty($row["id_forums"])) {
+            $forumsMap[$row["id_forum"]]["forums"][] = [
+                "id_forums" => $row["id_forums"],
+                "message" => $row["message"]
+            ];
+        }
     }
 
-    sendJSON($formattedResults);
+    // Convertir le forum map en tableau final
+    foreach ($forumsMap as $forum) {
+        $formattedResults[] = $forum;
+    }
+
+    sendJSON([
+        "tickets" => $formattedResults
+    ]);
 }
 
-function getForumById($id_forum){
+
+
+
+
+function getForumById($id_forum) {
     $pdo = getcom();
     $req = "
-        SELECT fs.*, f.id_forum, f.name as forum_name
+        SELECT fs.*, f.id_forum, f.name as forum_name, u.name as user_name, u.first_name, u.profil,
+               e.id_event, e.title as event_title, e.description as event_description, e.image as event_image, e.date as event_date
         FROM forums fs
         LEFT JOIN forum f ON fs.id_forum = f.id_forum
         LEFT JOIN users u ON fs.id_user = u.id_user
-        WHERE  fs.id_forum = :id
+        LEFT JOIN events e ON f.id_event = e.id_event
+        WHERE fs.id_forum = :id
     ";
     $stmt = $pdo->prepare($req);
-    $stmt->bindValue(":id",$id_forum,PDO::PARAM_STR);
+    $stmt->bindValue(":id", $id_forum, PDO::PARAM_STR);
     $stmt->execute();
-    $row = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $stmt->closeCursor();
 
-    // Réstructurer le tableau pour inclure les informations de valu et forum
-    if ($row) {
-        $formattedResults[] = [
+    // Réstructurer le tableau pour inclure les informations de l'utilisateur, du forum et de l'événement
+    $formattedResults = [];
+    $forums = [];
+
+    foreach ($results as $row) {
+        // On stocke les forums dans un tableau séparé
+        $forums[] = [
             "id_forums" => $row["id_forums"],
-            "message" => $row["message"],
-           "user" => [
-                "id_user" => $row["id_user"]
-            ],
-            "forum" => [
-                "id_forum" => $row["id_forum"],
-                "forum_name" => $row["forum_name"]
-            ],
-            "created_at" => $row["created_at"],
-            "updated_at" => $row["updated_at"]
+            "message" => $row["message"]
+        ];
+    }
+
+    // Compter le nombre total de forums
+    $totalForums = count($forums);
+
+    if (!empty($results)) {
+        // On utilise le premier résultat pour les informations utilisateur et événement (car ces champs semblent partagés)
+        $formattedResults = [
+            "id_forum" => $results["id_forum"],
+            "forum_name" => $results["forum_name"],
+            "user" => [
+                "id_user" => $results["id_user"],
+                "user_name" => $results["user_name"],
+                "users_first_name" => $results["first_name"],
+                "profil" => URL . "" . $results["profil"],
+                ],
+            "event" => [
+                "id_event" => $results["id_event"],
+                "event_title" => $results["event_title"],
+                "event_description" => $results["event_description"],
+                "event_image" => URL . "" . $results["event_image"],
+                "event_date" => $results["event_date"]
+                ],
+            "forums" => $forums,
+            "total_forums" => $totalForums,
+            "created_at" => $results["created_at"],
+            "updated_at" => $results["updated_at"]
         ];
     }
 
     sendJSON($formattedResults);
 }
 
-//----------------------------------users----------------------
+//---------------------------------- users ----------------------
 function generateOTP($length = 4) {
     $otp = '';
     for ($i = 0; $i < $length; $i++) {
@@ -483,12 +601,12 @@ function createUser($data) {
             $stmtUpdate->bindParam(':otp', $otp);
             $stmtUpdate->bindParam(':tel', $data['tel']);
             $stmtUpdate->execute();
-            $smsResponse = sendSMS($data['tel'], $otp);
+            // $smsResponse = sendSMS($data['tel'], $otp);
             // Renvoyer une réponse indiquant que l'OTP a été mis à jour
             $response = [
                 "status" => "success",
                 "message" => "OTP mis à jour avec succès",
-                "smsResponse" => $smsResponse
+                // "smsResponse" => $smsResponse
             ];
         } else {
             // Si le numéro n'existe pas, insérer un nouvel enregistrement
@@ -497,13 +615,13 @@ function createUser($data) {
             $stmtInsert->bindParam(':otp', $otp);
             $stmtInsert->bindParam(':tel', $data['tel']);
             $stmtInsert->execute();
-            $smsResponse = sendSMS($data['tel'], $otp);
+            // $smsResponse = sendSMS($data['tel'], $otp);
 
             // Renvoyer une réponse indiquant que l'utilisateur a été créé avec succès
             $response = [
                 "status" => "success",
                 "message" => "Utilisateur créé avec succès",
-                "smsResponse" => $smsResponse
+                // "smsResponse" => $smsResponse
             ];
         }
         return $response;
@@ -740,8 +858,7 @@ function upUser($data) {
     }
 }
 
-
-//----------------------------------tickets----------------------
+//---------------------------------- tickets ----------------------
 function getTickets() {
     $pdo = getcom();
     $req = "

@@ -15,15 +15,15 @@ try {
                 if (empty($url[1])) {
                     getEvents();
                 } else {
-                    getEventsByMonth($url[1]);
+                    getEventById($url[1]);
                 }
                 break;
             //---------------
-            case 'event':
-                if (!empty($url[1])) {
-                    getEventById($url[1]);
+            case 'eventsCurrent':
+                if (empty($url[1])) {
+                    getEventsByCurrentMonth();
                 } else {
-                    throw new Exception("Pas d'id d'objet fourni");
+                    getEventsByMonths($url[1]);
                 }
                 break;
             //---------------//
@@ -151,6 +151,6 @@ try {
         "message" => $e->getMessage(),
         "code" => $e->getCode()
     ];
-    print_r($erreur);
+    print_r($erreur); 
 }
 ?>

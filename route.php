@@ -11,7 +11,7 @@
 // GetEntrepriseById....//
 // GetForumById....//
 // GetEvenByMonth....//
-// GetEntrepriseByuser....//
+// GetEntrepriseByUser....//
 // GetTickets....//
 // GetTicketsByUsers....//
 // GetTicketsByevent....//
