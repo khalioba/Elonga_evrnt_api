@@ -9,8 +9,9 @@ try {
     if (!empty($_GET['api'])) {
         // Traitement des requêtes GET
         $url = explode("/", filter_var($_GET['api'],FILTER_SANITIZE_URL));
+
         switch ($url[0]) {
-            //---------------
+            //---------------//
             case 'events':
                 if (empty($url[1])) {
                     getEvents();
@@ -47,7 +48,7 @@ try {
                 if (empty($url[1])) {
                     getForum();
                 } else {
-                    throw new Exception("...");
+                    getForumByIdEvent($url[1]);
                 }
                 break;
             //---------------
@@ -67,6 +68,14 @@ try {
                 }
                 break;
             //---------------//
+            case 'getusers':
+                if (empty($url[1])) {
+                    getUsers();
+                } else {
+                    throw new Exception("");
+                }
+                break;
+            //---------------//
             case 'tickets':
                 if (empty($url[1])) {
                     getTickets();
@@ -74,7 +83,7 @@ try {
                     getTicketByIdEvent($url[1]);
                 }
                 break;
-            //---------------
+            //---------------//
             case 'ticket':
                 if (!empty($url[1])) {
                     getTicketByUsers($url[1]);
@@ -82,7 +91,7 @@ try {
                     throw new Exception("Pas d'id");
                 }
                 break;
-            //---------------
+            //---------------//
             default:
                 throw new Exception("La demande n'est pas valide");
                 break;

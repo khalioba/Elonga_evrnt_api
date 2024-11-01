@@ -9,6 +9,7 @@ function getcom(){
 
     return new PDO("mysql:host=localhost;dbname=matsuri;charset=utf8","root","");
 }
+
 function sendJSON($data) {
     header('Content-Type: application/json');
     echo json_encode($data);
@@ -53,6 +54,22 @@ function saveProfileImage($imageData) {
     return $targetFile;
 }
 
+function saveImage($imageData) {
+    if (strpos($imageData, 'data:image/') !== 0) {
+        throw new Exception("Format d'image non valide");
+    }
+
+    $extension = explode('/', mime_content_type($imageData))[1];
+    $fileName = uniqid('services_') . '.' . $extension;
+    $targetDir = "images/";
+    $targetFile = $targetDir . $fileName;
+
+    if (file_put_contents($targetFile, base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $imageData)))) {
+        return $targetFile;
+    } else {
+        throw new Exception("Erreur lors de l'enregistrement du fichier");
+    }
+}
 //----------------------------------les evenement----------------------
 
 //------GET
@@ -250,41 +267,53 @@ function getEventsByCurrentMonth() {
 
 //------POST
 
-function postEvent($data){
-    $pdo = getcom();
-    try {
-        // Loguer les données reçues dans la fonction
-        error_log("Données reçues pour createServices: " . print_r($data, true));
+function postEvent($data) {
+    $pdo = getcom(); // Connexion à la base de données
 
+    try {
+        error_log("Données reçues pour createServices: " . print_r($data, true));
+        
         // Vérifiez que les données nécessaires sont présentes
-        if (!isset($data['title']) || !isset($data['description']) || !isset($data['image'])) {
+        if (!isset($data['title']) || !isset($data['description']) || !isset($data['date']) || !isset($data['address'])|| !isset($data['images'])) {
             throw new Exception("Informations requises manquantes");
         }
 
-        // Enregistrez l'image
-        $targetFile = saveProfileImage($data['image']);
+        if (!isset($_FILES['image'])) {
+            throw new Exception("Image non fournie");
+        }
 
-        // Préparez la requête d'insertion avec trois paramètres de liaison
-        $sql = "INSERT INTO events (title, description, image) VALUES (?, ?, ?)";
+
+        // Enregistrez l'image (et vérifiez si saveImage renvoie un chemin ou une URL valide)
+        $targetFile = saveImage($data['images']);
+        if (!$targetFile) {
+            throw new Exception("L'enregistrement de l'image a échoué");
+        }
+
+        
+
+        // Préparez la requête d'insertion
+        $sql = "INSERT INTO events (title, description, date, address, image) VALUES (?, ?, ?, ?, ?)";
+
         $stmt = $pdo->prepare($sql);
         $stmt->bindParam(1, $data['title']);
         $stmt->bindParam(2, $data['description']);
-        $stmt->bindParam(3, $data['description']);
-        $stmt->bindParam(4, $data['description']);
-        $stmt->bindParam(5, $data['description']);
-        $stmt->bindParam(2, $data['description']);
-        $stmt->bindParam(7, $data['description']);
-        $stmt->bindParam(8, $targetFile);
+        $stmt->bindParam(3, $data['date']);
+        $stmt->bindParam(4, $data['address']);
+        $stmt->bindParam(5, $targetFile);
 
+        // Exécutez la requête
         $stmt->execute();
 
+        // Retournez une réponse JSON en cas de succès
         $response = [
             "status" => "success",
-            "message" => "Événement créé avec succès"
+            "message" => "Service créé avec succès"
         ];
         return $response;
+
     } catch (Exception $e) {
-        error_log("Erreur dans createServices: " . $e->getMessage());
+        // En cas d'erreur, enregistrez le message d'erreur dans les logs et retournez une réponse d'erreur
+        error_log("Erreur dans createEvents: " . $e->getMessage());
         $response = [
             "status" => "error",
             "message" => $e->getMessage()
@@ -292,6 +321,62 @@ function postEvent($data){
         return $response;
     }
 }
+
+// function postEvent($data){
+//     $pdo = getcom();
+//     try {
+//         error_log("Données reçues pour createServices: " . print_r($data, true));
+
+//         // Vérifiez les données nécessaires
+//         if (!isset($data['title']) || !isset($data['description']) || !isset($data['date']) || !isset($data['address']) || !isset($data['statu'])) {
+//             throw new Exception("Informations requises manquantes");
+//         }
+
+//         // Vérifiez l'image dans $_FILES
+//         if (isset($_FILES['image']) && $_FILES['image']['error'] == UPLOAD_ERR_OK) {
+//             $targetFile = saveProfileImage($_FILES['image']['tmp_name']);
+//         } else {
+//             throw new Exception("Échec de l'enregistrement de l'image");
+//         }
+
+//         // Validez le format de la date
+//         $date = DateTime::createFromFormat('Y-m-d H:i:s', $data['date']);
+//         if (!$date) {
+//             throw new Exception("Format de date invalide");
+//         }
+
+//         // Préparez la requête d'insertion
+//         $sql = "INSERT INTO events (title, description, date, address, statu, image) VALUES (?, ?, ?, ?, ?, ?)";
+//         $stmt = $pdo->prepare($sql);
+//         $stmt->bindParam(1, $data['title']);
+//         $stmt->bindParam(2, $data['description']);
+//         $stmt->bindParam(3, $data['date']);
+//         $stmt->bindParam(4, $data['address']);
+//         $stmt->bindParam(5, $data['statu']);
+//         $stmt->bindParam(6, $targetFile);
+
+//         $stmt->execute();
+
+//         return [
+//             "status" => "success",
+//             "message" => "Événement créé avec succès"
+//         ];
+//     } catch (Exception $e) {
+//         error_log("Erreur dans createServices: " . $e->getMessage());
+        
+//         // Supprimer l'image si elle a été enregistrée
+//         if (isset($targetFile) && file_exists($targetFile)) {
+//             unlink($targetFile);
+//         }
+
+//         return [
+//             "status" => "error",
+//             "message" => $e->getMessage()
+//         ];
+//     }
+// }
+
+
 
 //----------------------------------les entreprise----------------------
 
@@ -385,7 +470,7 @@ function getConpanyById($id_company) {
 }
 
 //----------------------------------les forum----------------------
-
+    
 function getForum() {
     $pdo = getcom();
     $req = "
@@ -443,15 +528,13 @@ function getForum() {
     ]);
 }
 
-
-
-
-
 function getForumById($id_forum) {
     $pdo = getcom();
     $req = "
-        SELECT fs.*, f.id_forum, f.name as forum_name, u.name as user_name, u.first_name, u.profil,
-               e.id_event, e.title as event_title, e.description as event_description, e.image as event_image, e.date as event_date
+        SELECT fs.created_at,fs.id_forums, fs.message, f.id_forum, f.name as forum_name, 
+               u.id_user, u.name as user_name, u.first_name, u.profil,
+               e.id_event, e.title as event_title, e.description as event_description, 
+               e.image as event_image, e.date as event_date
         FROM forums fs
         LEFT JOIN forum f ON fs.id_forum = f.id_forum
         LEFT JOIN users u ON fs.id_user = u.id_user
@@ -459,55 +542,123 @@ function getForumById($id_forum) {
         WHERE fs.id_forum = :id
     ";
     $stmt = $pdo->prepare($req);
-    $stmt->bindValue(":id", $id_forum, PDO::PARAM_STR);
+    $stmt->bindValue(":id", $id_forum, PDO::PARAM_INT); // Correction: PDO::PARAM_INT pour un ID
     $stmt->execute();
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $stmt->closeCursor();
 
-    // Réstructurer le tableau pour inclure les informations de l'utilisateur, du forum et de l'événement
     $formattedResults = [];
     $forums = [];
 
     foreach ($results as $row) {
-        // On stocke les forums dans un tableau séparé
+        // Regroupe les forums dans un tableau
         $forums[] = [
             "id_forums" => $row["id_forums"],
-            "message" => $row["message"]
-        ];
-    }
-
-    // Compter le nombre total de forums
-    $totalForums = count($forums);
-
-    if (!empty($results)) {
-        // On utilise le premier résultat pour les informations utilisateur et événement (car ces champs semblent partagés)
-        $formattedResults = [
-            "id_forum" => $results["id_forum"],
-            "forum_name" => $results["forum_name"],
+            "message" => $row["message"],
+            "date" => $row["created_at"],
             "user" => [
-                "id_user" => $results["id_user"],
-                "user_name" => $results["user_name"],
-                "users_first_name" => $results["first_name"],
-                "profil" => URL . "" . $results["profil"],
-                ],
-            "event" => [
-                "id_event" => $results["id_event"],
-                "event_title" => $results["event_title"],
-                "event_description" => $results["event_description"],
-                "event_image" => URL . "" . $results["event_image"],
-                "event_date" => $results["event_date"]
-                ],
-            "forums" => $forums,
-            "total_forums" => $totalForums,
-            "created_at" => $results["created_at"],
-            "updated_at" => $results["updated_at"]
+                "id_user" => $row["id_user"],
+                "user_name" => $row["user_name"],
+                "first_name" => $row["first_name"],
+                "profil" => URL . $row["profil"],
+            ]
         ];
     }
+
+    // Ajouter les informations de l'événement et les forums associés
+    $formattedResults = [
+        "id_forum" => $results[0]["id_forum"], // On suppose que c'est le même pour toutes les lignes
+        "event" => [
+            "id_event" => $results[0]["id_event"],
+            "event_title" => $results[0]["event_title"],
+            "event_description" => $results[0]["event_description"],
+            "event_image" => URL . "image/" . $results[0]["event_image"],
+            "event_date" => $results[0]["event_date"]
+        ],
+        "forums" => $forums // Insère le tableau de forums regroupés
+    ];
 
     sendJSON($formattedResults);
 }
+function getForumByIdEvent($id_event) {
+    $pdo = getcom();
+    $req = "
+        SELECT fs.created_at,fs.id_forums, fs.message, f.id_forum, f.name as forum_name, 
+               u.id_user, u.name as user_name, u.first_name, u.profil,
+               e.id_event, e.title as event_title, e.description as event_description, 
+               e.image as event_image, e.date as event_date
+        FROM forums fs
+        LEFT JOIN forum f ON fs.id_forum = f.id_forum
+        LEFT JOIN users u ON fs.id_user = u.id_user
+        LEFT JOIN events e ON f.id_event = e.id_event
+        WHERE f.id_event = :id
+    ";
+    $stmt = $pdo->prepare($req);
+    $stmt->bindValue(":id", $id_event, PDO::PARAM_INT); // Correction: PDO::PARAM_INT pour un ID
+    $stmt->execute();
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->closeCursor();
 
+    $formattedResults = [];
+    $forums = [];
+
+    foreach ($results as $row) {
+        // Regroupe les forums dans un tableau
+        $forums[] = [
+            "id_forums" => $row["id_forums"],
+            "message" => $row["message"],
+            "date" => $row["created_at"],
+            "user" => [
+                "id_user" => $row["id_user"],
+                "user_name" => $row["user_name"],
+                "first_name" => $row["first_name"],
+                "profil" => URL . $row["profil"],
+            ]
+        ];
+    }
+
+    // Ajouter les informations de l'événement et les forums associés
+    $formattedResults = [
+        "id_forum" => $results[0]["id_forum"], // On suppose que c'est le même pour toutes les lignes
+        "event" => [
+            "id_event" => $results[0]["id_event"],
+            "event_title" => $results[0]["event_title"],
+            "event_description" => $results[0]["event_description"],
+            "event_image" => URL . "image/" . $results[0]["event_image"],
+            "event_date" => $results[0]["event_date"]
+        ],
+        "forums" => $forums // Insère le tableau de forums regroupés
+    ];
+
+    sendJSON($formattedResults);
+}
 //---------------------------------- users ----------------------
+function getUsers() {
+    $pdo = getcom();
+    $req = "SELECT * FROM `users`";
+    $stmt = $pdo->prepare($req);
+    $stmt->execute();
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->closeCursor();
+
+    // Réstructurer le tableau pour inclure les informations de valu
+    $formattedResults = [];
+    foreach ($results as $row) {
+        $formattedResults[] = [
+            "id_user" => $row["id_user"],
+            "name" => $row["name"],
+            "first_name" => $row["first_name"],
+            "ville" => $row["ville"],
+            "email" => $row["email"],
+            "genre" => $row["genre"],
+            "age" => $row["age"],
+            "tel" => $row["tel"],
+            "profil" => URL."".$row["profil"],
+        ];
+    }
+    sendJSON($formattedResults);
+}
+
 function generateOTP($length = 4) {
     $otp = '';
     for ($i = 0; $i < $length; $i++) {
