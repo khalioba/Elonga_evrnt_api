@@ -3,11 +3,13 @@
 define("URL", str_replace("index.php","",(isset($_SERVER['HTTPS'])? "https" : "http").
 "://".$_SERVER['HTTP_HOST'].$_SERVER["PHP_SELF"]));
 
+
+
 // cconnexion à la basse de donner en ligne
 function getcom(){
-    // return new PDO("mysql:host=localhost;dbname=u246153201_db_elonga;charset=utf8","u246153201_db_elonga","Mot2paSSe");
+    return new PDO("mysql:host=localhost;dbname=u246153201_db_elonga;charset=utf8","u246153201_db_elonga","Mot2paSSe");
 
-    return new PDO("mysql:host=localhost;dbname=matsuri;charset=utf8","root","");
+    // return new PDO("mysql:host=localhost;dbname=matsuri;charset=utf8","root","");
 }
 
 function sendJSON($data) {
@@ -28,6 +30,7 @@ function getCount($tab) {
 
     sendJSON(['count' => $count]);
 }
+
 
 function saveProfileImage($imageData) {
     if (strpos($imageData, 'data:image/') !== 0 || !preg_match('#^data:image/\w+;base64,#i', $imageData)) {
@@ -75,46 +78,51 @@ function saveImage($imageData) {
 //------GET
 
 function getEvents() {
-    $pdo = getcom();
-    $req = "
-        SELECT e.*, v.id_value, v.value, c.id_company, c.name AS name_company, c.logo AS logo_company
+        $pdo = getcom();
+        $req = "
+            SELECT e.*, v.id_value, v.value, c.id_company, c.name AS name_company, c.logo AS logo_company, ca.id_categorie, ca.name as name_categorie, ca.color
 
-        FROM events e
-        LEFT JOIN valu v ON e.id_value = v.id_value
-        LEFT JOIN company c ON e.id_company = C.id_company
-    ";
-    $stmt = $pdo->prepare($req);
-    $stmt->execute();
-    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $stmt->closeCursor();
+            FROM events e
+            LEFT JOIN valu v ON e.id_value = v.id_value
+            LEFT JOIN categories ca ON e.id_categorie = ca.id_categorie
+            LEFT JOIN company c ON e.id_company = c.id_company
+        ";
+        $stmt = $pdo->prepare($req);
+        $stmt->execute();
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $stmt->closeCursor();
 
-    // Réstructurer le tableau pour inclure les informations de valu
-    $formattedResults = [];
-    foreach ($results as $row) {
-        $formattedResults[] = [
-            "id_event" => $row["id_event"],
-            "title" => $row["title"],
-            "description" => $row["description"],
-            "image" => URL . "image/" . $row["image"],
-            "date" => $row["date"],
-            "address" => $row["address"],
-            "statu" => $row["statu"],
-            "value" => [
-                "id_value" => $row["id_value"],
-                "value" => $row["value"]
-            ],
-            "company" => [
-                "id_company" => $row["id_company"],
-                "name_company" => $row["name_company"],
-                "logo_company" => URL . "" . $row["logo_company"],
-            ],
-            "created_at" => $row["created_at"],
-            "updated_at" => $row["updated_at"]
-        ];
+        // Réstructurer le tableau pour inclure les informations de valu
+        $formattedResults = [];
+        foreach ($results as $row) {
+            $formattedResults[] = [
+                "id_event" => $row["id_event"],
+                "title" => $row["title"],
+                "description" => $row["description"],
+                "image" => URL . "image/" . $row["image"],
+                "date" => $row["date"],
+                "address" => $row["address"],
+                "statu" => $row["statu"],
+                "categorie" => [
+                    "name" => $row["name_categorie"],
+                    "color" => $row["color"]
+                ],
+                "value" => [
+                    "id_value" => $row["id_value"],
+                    "value" => $row["value"]
+                ],
+                "company" => [
+                    "id_company" => $row["id_company"],
+                    "name_company" => $row["name_company"],
+                    "logo_company" => URL . "" . $row["logo_company"],
+                ],
+                "created_at" => $row["created_at"],
+                "updated_at" => $row["updated_at"]
+            ];
+        }
+
+        sendJSON($formattedResults);
     }
-
-    sendJSON($formattedResults);
-}
 
 function getEventById($id_event){
     $pdo = getcom();
@@ -123,7 +131,7 @@ function getEventById($id_event){
 
         FROM events e
         LEFT JOIN valu v ON e.id_value = v.id_value
-        LEFT JOIN company c ON e.id_company = C.id_company
+        LEFT JOIN company c ON e.id_company = c.id_company
     WHERE  e.id_event = :id";
     $stmt = $pdo->prepare($req);
     $stmt->bindValue(":id",$id_event,PDO::PARAM_STR);
@@ -268,113 +276,66 @@ function getEventsByCurrentMonth() {
 //------POST
 
 function postEvent($data) {
-    $pdo = getcom(); // Connexion à la base de données
-
-    try {
-        error_log("Données reçues pour createServices: " . print_r($data, true));
-        
-        // Vérifiez que les données nécessaires sont présentes
-        if (!isset($data['title']) || !isset($data['description']) || !isset($data['date']) || !isset($data['address'])|| !isset($data['images'])) {
-            throw new Exception("Informations requises manquantes");
+        $pdo = getcom(); // Connexion à la base de données
+    
+        try {
+            error_log("Données reçues pour postEvent: " . print_r($data, true));
+    
+            // Vérifiez que les données nécessaires sont présentes
+            if (
+                !isset($data['title']) || 
+                !isset($data['description']) || 
+                !isset($data['date']) || 
+                !isset($data['address']) || 
+                !isset($data['id_categorie']) || 
+                !isset($data['id_company'])
+            ) {
+                throw new Exception("Informations requises manquantes");
+            }
+    
+            if (!isset($_FILES['image'])) {
+                throw new Exception("Image non fournie");
+            }
+    
+            // Enregistrez l'image
+            $targetFile = saveImage($_FILES['image']);
+            if (!$targetFile) {
+                throw new Exception("L'enregistrement de l'image a échoué");
+            }
+    
+            // Préparez la requête d'insertion
+            $sql = "INSERT INTO events (title, description, date, address, id_categorie, id_company, image) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?)";
+    
+            $stmt = $pdo->prepare($sql);
+            $stmt->bindParam(1, $data['title']);
+            $stmt->bindParam(2, $data['description']);
+            $stmt->bindParam(3, $data['date']);
+            $stmt->bindParam(4, $data['address']);
+            $stmt->bindParam(5, $data['id_categorie']);
+            $stmt->bindParam(6, $data['id_company']);
+            $stmt->bindParam(7, $targetFile);
+    
+            // Exécutez la requête
+            $stmt->execute();
+    
+            // Retournez une réponse JSON en cas de succès
+            $response = [
+                "status" => "success",
+                "message" => "Événement créé avec succès"
+            ];
+            return $response;
+    
+        } catch (Exception $e) {
+            // En cas d'erreur, enregistrez le message d'erreur dans les logs et retournez une réponse d'erreur
+            error_log("Erreur dans postEvent: " . $e->getMessage());
+            $response = [
+                "status" => "error",
+                "message" => $e->getMessage()
+            ];
+            return $response;
         }
-
-        if (!isset($_FILES['image'])) {
-            throw new Exception("Image non fournie");
-        }
-
-
-        // Enregistrez l'image (et vérifiez si saveImage renvoie un chemin ou une URL valide)
-        $targetFile = saveImage($data['images']);
-        if (!$targetFile) {
-            throw new Exception("L'enregistrement de l'image a échoué");
-        }
-
-        
-
-        // Préparez la requête d'insertion
-        $sql = "INSERT INTO events (title, description, date, address, image) VALUES (?, ?, ?, ?, ?)";
-
-        $stmt = $pdo->prepare($sql);
-        $stmt->bindParam(1, $data['title']);
-        $stmt->bindParam(2, $data['description']);
-        $stmt->bindParam(3, $data['date']);
-        $stmt->bindParam(4, $data['address']);
-        $stmt->bindParam(5, $targetFile);
-
-        // Exécutez la requête
-        $stmt->execute();
-
-        // Retournez une réponse JSON en cas de succès
-        $response = [
-            "status" => "success",
-            "message" => "Service créé avec succès"
-        ];
-        return $response;
-
-    } catch (Exception $e) {
-        // En cas d'erreur, enregistrez le message d'erreur dans les logs et retournez une réponse d'erreur
-        error_log("Erreur dans createEvents: " . $e->getMessage());
-        $response = [
-            "status" => "error",
-            "message" => $e->getMessage()
-        ];
-        return $response;
     }
-}
-
-// function postEvent($data){
-//     $pdo = getcom();
-//     try {
-//         error_log("Données reçues pour createServices: " . print_r($data, true));
-
-//         // Vérifiez les données nécessaires
-//         if (!isset($data['title']) || !isset($data['description']) || !isset($data['date']) || !isset($data['address']) || !isset($data['statu'])) {
-//             throw new Exception("Informations requises manquantes");
-//         }
-
-//         // Vérifiez l'image dans $_FILES
-//         if (isset($_FILES['image']) && $_FILES['image']['error'] == UPLOAD_ERR_OK) {
-//             $targetFile = saveProfileImage($_FILES['image']['tmp_name']);
-//         } else {
-//             throw new Exception("Échec de l'enregistrement de l'image");
-//         }
-
-//         // Validez le format de la date
-//         $date = DateTime::createFromFormat('Y-m-d H:i:s', $data['date']);
-//         if (!$date) {
-//             throw new Exception("Format de date invalide");
-//         }
-
-//         // Préparez la requête d'insertion
-//         $sql = "INSERT INTO events (title, description, date, address, statu, image) VALUES (?, ?, ?, ?, ?, ?)";
-//         $stmt = $pdo->prepare($sql);
-//         $stmt->bindParam(1, $data['title']);
-//         $stmt->bindParam(2, $data['description']);
-//         $stmt->bindParam(3, $data['date']);
-//         $stmt->bindParam(4, $data['address']);
-//         $stmt->bindParam(5, $data['statu']);
-//         $stmt->bindParam(6, $targetFile);
-
-//         $stmt->execute();
-
-//         return [
-//             "status" => "success",
-//             "message" => "Événement créé avec succès"
-//         ];
-//     } catch (Exception $e) {
-//         error_log("Erreur dans createServices: " . $e->getMessage());
-        
-//         // Supprimer l'image si elle a été enregistrée
-//         if (isset($targetFile) && file_exists($targetFile)) {
-//             unlink($targetFile);
-//         }
-
-//         return [
-//             "status" => "error",
-//             "message" => $e->getMessage()
-//         ];
-//     }
-// }
 
 
 
@@ -669,22 +630,19 @@ function generateOTP($length = 4) {
 
 function sendSMS($to, $otp) {
     $url = 'https://sms.mtncongo.net/api/sms/';
-    $token = '8565e8e2316d99ce983df5ac73054c8ab15555c9'; // Remplacez par votre token personnel
+    $token = '8565e8e2316d99ce983df5ac73054c8ab15555c9';
 
-    // Les données du SMS
     $data = [
         "msg" => "Votre code est : " . $otp,
         "receivers" => $to,
         "sender" => "Elonga Even",
-        "date_envois" => date('c'), // Date actuelle au format ISO 8601
+        "date_envois" => date('c'),
         "externalId" => 10,
         "callback_url" => "https://www.example.com/api/callback"
     ];
 
-    // Initialiser cURL
     $ch = curl_init($url);
 
-    // Configurer les options cURL
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Authorization: Token ' . $token,
@@ -692,24 +650,25 @@ function sendSMS($to, $otp) {
     ]);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/function/cacert.pem'); 
+    // Ajoutez le fichier cacert.pem
 
-    // Exécuter la requête cURL et obtenir la réponse
+    // Pour déboguer temporairement (désactiver en production)
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
     $response = curl_exec($ch);
-    
-    // Vérifier les erreurs cURL
+
     if (curl_errno($ch)) {
         $error_msg = curl_error($ch);
         curl_close($ch);
         throw new Exception("Erreur cURL: " . $error_msg);
     }
 
-    // Fermer cURL
     curl_close($ch);
 
-    // Décoder la réponse JSON
     $response_data = json_decode($response, true);
 
-    // Vérifier si l'envoi a réussi
     if (isset($response_data['statut']) && $response_data['statut'] === '200') {
         return [
             "status" => "success",
@@ -752,12 +711,12 @@ function createUser($data) {
             $stmtUpdate->bindParam(':otp', $otp);
             $stmtUpdate->bindParam(':tel', $data['tel']);
             $stmtUpdate->execute();
-            // $smsResponse = sendSMS($data['tel'], $otp);
+            $smsResponse = sendSMS($data['tel'], $otp);
             // Renvoyer une réponse indiquant que l'OTP a été mis à jour
             $response = [
                 "status" => "success",
                 "message" => "OTP mis à jour avec succès",
-                // "smsResponse" => $smsResponse
+                "smsResponse" => $smsResponse
             ];
         } else {
             // Si le numéro n'existe pas, insérer un nouvel enregistrement
@@ -766,13 +725,13 @@ function createUser($data) {
             $stmtInsert->bindParam(':otp', $otp);
             $stmtInsert->bindParam(':tel', $data['tel']);
             $stmtInsert->execute();
-            // $smsResponse = sendSMS($data['tel'], $otp);
+            $smsResponse = sendSMS($data['tel'], $otp);
 
             // Renvoyer une réponse indiquant que l'utilisateur a été créé avec succès
             $response = [
                 "status" => "success",
                 "message" => "Utilisateur créé avec succès",
-                // "smsResponse" => $smsResponse
+                "smsResponse" => $smsResponse
             ];
         }
         return $response;
@@ -1035,7 +994,7 @@ function getTickets() {
                 "id_event" => $row["id_event"],
                 "title" => $row["title"],
                 "description_event" => $row["description_event"],
-                "image" => $row["image"],
+                "image" =>  URL . "image/" .$row["image"],
                 "date" => $row["date"]
             ],
             "created_at" => $row["created_at"],
@@ -1072,7 +1031,7 @@ function getTicketByIdEvent($id_event) {
                 "id_event" => $row["id_event"],
                 "title" => $row["title"],
                 "description_event" => $row["description_event"],
-                "image" => $row["image"],
+                "image" =>  URL . "image/" .$row["image"],
                 "date" => $row["date"]
             ],
             "created_at" => $row["created_at"],
@@ -1126,4 +1085,85 @@ function getTicketByUsers($user) {
     sendJSON($formattedResults);
 }
 
+//------POST
+
+function postTicketsUser($data) {
+    $pdo = getcom(); // Connexion à la base de données
+
+    try {
+        error_log("Données reçues pour createServices: " . print_r($data, true));
+        
+        // Vérifiez que les données nécessaires sont présentes
+        if (!isset($data['id_tickets']) || !isset($data['id_user'])) {
+            throw new Exception("Informations requises manquantes");
+        }
+
+        // Préparez la requête d'insertion
+        $sql = "INSERT INTO ticket (id_tickets, id_user) VALUES (?, ?)";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindParam(1, $data['id_tickets']);
+        $stmt->bindParam(2, $data['id_user']);
+
+        // Exécutez la requête
+        $stmt->execute();
+
+        // Retournez une réponse JSON en cas de succès
+        $response = [
+            "status" => "success",
+            "message" => "Service créé avec succès"
+        ];
+        return $response;
+
+    } catch (Exception $e) {
+        // En cas d'erreur, enregistrez le message d'erreur dans les logs et retournez une réponse d'erreur
+        error_log("Erreur dans createEvents: " . $e->getMessage());
+        $response = [
+            "status" => "error",
+            "message" => $e->getMessage()
+        ];
+        return $response;
+    }
+}
+
+function postTicketsEvent($data) {
+    $pdo = getcom(); // Connexion à la base de données
+
+    try {
+        error_log("Données reçues pour createServices: " . print_r($data, true));
+        
+        // Vérifiez que les données nécessaires sont présentes
+        if (!isset($data['name']) || !isset($data['price'])|| !isset($data['description'])|| !isset($data['id_event'])) {
+            throw new Exception("Informations requises manquantes");
+        }
+
+        // Préparez la requête d'insertion
+        $sql = "INSERT INTO tickets (name, price, description, id_event) VALUES (?, ?, ?, ?)";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindParam(1, $data['name']);
+        $stmt->bindParam(2, $data['price']);
+        $stmt->bindParam(3, $data['description']);
+        $stmt->bindParam(4, $data['id_event']);
+
+        // Exécutez la requête
+        $stmt->execute();
+
+        // Retournez une réponse JSON en cas de succès
+        $response = [
+            "status" => "success",
+            "message" => "ticket créé avec succès"
+        ];
+        return $response;
+
+    } catch (Exception $e) {
+        // En cas d'erreur, enregistrez le message d'erreur dans les logs et retournez une réponse d'erreur
+        error_log("Erreur dans createEvents: " . $e->getMessage());
+        $response = [
+            "status" => "error",
+            "message" => $e->getMessage()
+        ];
+        return $response;
+    }
+}
 //--------------------------------------------------------

@@ -1,7 +1,14 @@
 <?php
+
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+
+// Initialisation cURL
+$ch = curl_init(); // Crée un handle cURL
+
+// Chemin vers le fichier cacert.pem
+curl_setopt($ch, CURLOPT_CAINFO, 'cacert.pem');
 
 include("function/function.php");
 
@@ -139,6 +146,24 @@ try {
             case 'updateuser':
                 if (!empty($postData['data'])) {
                     $result = upUser($postData['data']);
+                    sendJSON($result);
+                } else {
+                    throw new Exception("Données manquantes pour la mise à jour de l'utilisateur");
+                }
+                break;
+
+            case 'tickets_user':
+                if (!empty($postData['data'])) {
+                    $result = postTicketsUser($postData['data']);
+                    sendJSON($result);
+                } else {
+                    throw new Exception("Données manquantes pour la mise à jour de l'utilisateur");
+                }
+                break;
+
+            case 'ticketsEvent':
+                if (!empty($postData['data'])) {
+                    $result = postTicketsEvent($postData['data']);
                     sendJSON($result);
                 } else {
                     throw new Exception("Données manquantes pour la mise à jour de l'utilisateur");
