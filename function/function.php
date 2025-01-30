@@ -9,7 +9,7 @@ define("URL", str_replace("index.php","",(isset($_SERVER['HTTPS'])? "https" : "h
 function getcom(){
     return new PDO("mysql:host=localhost;dbname=u246153201_db_elonga;charset=utf8","u246153201_db_elonga","Mot2paSSe");
 
-    // return new PDO("mysql:host=localhost;dbname=matsuri;charset=utf8","root","");
+    // return new PDO("mysql:host=localhost;dbname=elonga;charset=utf8","root","");
 }
 
 function sendJSON($data) {
@@ -122,7 +122,7 @@ function getEvents() {
         }
 
         sendJSON($formattedResults);
-    }
+}
 
 function getEventById($id_event){
     $pdo = getcom();
@@ -439,7 +439,7 @@ function getForum() {
                e.id_event, e.title as event_title, e.description as event_description, e.image as event_image, e.date as event_date, 
                f.created_at, f.updated_at
         FROM forum f
-        LEFT JOIN forums fs ON fs.id_forum = f.id_forum
+        LEFT JOIN forums fs ON fs.id_forums = f.id_forum
         LEFT JOIN users u ON fs.id_user = u.id_user
         LEFT JOIN events e ON f.id_event = e.id_event
     ";
@@ -485,7 +485,7 @@ function getForum() {
     }
 
     sendJSON([
-        "tickets" => $formattedResults
+        "forums" => $formattedResults
     ]);
 }
 
@@ -497,7 +497,7 @@ function getForumById($id_forum) {
                e.id_event, e.title as event_title, e.description as event_description, 
                e.image as event_image, e.date as event_date
         FROM forums fs
-        LEFT JOIN forum f ON fs.id_forum = f.id_forum
+        LEFT JOIN forum f ON fs.id_forums = f.id_forum
         LEFT JOIN users u ON fs.id_user = u.id_user
         LEFT JOIN events e ON f.id_event = e.id_event
         WHERE fs.id_forum = :id
@@ -544,30 +544,44 @@ function getForumById($id_forum) {
 function getForumByIdEvent($id_event) {
     $pdo = getcom();
     $req = "
-        SELECT fs.created_at,fs.id_forums, fs.message, f.id_forum, f.name as forum_name, 
-               u.id_user, u.name as user_name, u.first_name, u.profil,
-               e.id_event, e.title as event_title, e.description as event_description, 
-               e.image as event_image, e.date as event_date
-        FROM forums fs
-        LEFT JOIN forum f ON fs.id_forum = f.id_forum
-        LEFT JOIN users u ON fs.id_user = u.id_user
-        LEFT JOIN events e ON f.id_event = e.id_event
-        WHERE f.id_event = :id
+    SELECT fs.*, 
+           u.id_user, u.name as user_name, u.first_name, u.profil,
+           e.id_event, e.title as event_title, e.description as event_description, 
+           e.image as event_image, e.date as event_date
+    FROM forums fs
+    LEFT JOIN users u ON fs.id_user = u.id_user
+    LEFT JOIN events e ON fs.id_event = e.id_event
+    WHERE fs.id_event = :id
     ";
     $stmt = $pdo->prepare($req);
-    $stmt->bindValue(":id", $id_event, PDO::PARAM_INT); // Correction: PDO::PARAM_INT pour un ID
+    $stmt->bindValue(":id", $id_event, PDO::PARAM_INT);
     $stmt->execute();
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $stmt->closeCursor();
 
-    $formattedResults = [];
+    // Vérifiez si des résultats existent
+    if (empty($results)) {
+        // Si aucun forum n'est trouvé pour cet événement
+        sendJSON([
+            "id_forum" => null,
+            "event" => [
+                "id_event" => null,
+                "event_title" => null,
+                "event_description" => null,
+                "event_image" => URL . "image/",
+                "event_date" => null
+            ],
+            "forums" => []
+        ]);
+        return;
+    }
+
     $forums = [];
 
     foreach ($results as $row) {
-        // Regroupe les forums dans un tableau
         $forums[] = [
-            "id_forums" => $row["id_forums"],
-            "message" => $row["message"],
+            "forums" => $row["id_forums"],
+            "message" => htmlspecialchars($row["message"]),
             "date" => $row["created_at"],
             "user" => [
                 "id_user" => $row["id_user"],
@@ -580,7 +594,7 @@ function getForumByIdEvent($id_event) {
 
     // Ajouter les informations de l'événement et les forums associés
     $formattedResults = [
-        "id_forum" => $results[0]["id_forum"], // On suppose que c'est le même pour toutes les lignes
+        "forum" => $results[0]["id_forums"], // Utilisation des premiers résultats
         "event" => [
             "id_event" => $results[0]["id_event"],
             "event_title" => $results[0]["event_title"],
@@ -588,10 +602,93 @@ function getForumByIdEvent($id_event) {
             "event_image" => URL . "image/" . $results[0]["event_image"],
             "event_date" => $results[0]["event_date"]
         ],
-        "forums" => $forums // Insère le tableau de forums regroupés
+        "forums" => $forums
     ];
 
     sendJSON($formattedResults);
+}
+
+
+
+//------POST
+
+function postForum($data) {
+    $pdo = getcom(); // Connexion à la base de données
+
+    try {
+        error_log("Données reçues pour createServices: " . print_r($data, true));
+        
+        // Vérifiez que les données nécessaires sont présentes
+        if (!isset($data['id_event']) || !isset($data['name'])) {
+            throw new Exception("Informations requises manquantes");
+        }
+
+        // Préparez la requête d'insertion
+        $sql = "INSERT INTO forum (id_event, name) VALUES (?, ?)";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindParam(1, $data['id_event']);
+        $stmt->bindParam(2, $data['name']);
+
+        // Exécutez la requête
+        $stmt->execute();
+
+        // Retournez une réponse JSON en cas de succès
+        $response = [
+            "status" => "success",
+            "message" => "forum créé avec succès"
+        ];
+        return $response;
+
+    } catch (Exception $e) {
+        // En cas d'erreur, enregistrez le message d'erreur dans les logs et retournez une réponse d'erreur
+        error_log("Erreur dans createEvents: " . $e->getMessage());
+        $response = [
+            "status" => "error",
+            "message" => $e->getMessage()
+        ];
+        return $response;
+    }
+}
+
+function postForums($data) {
+    $pdo = getcom(); // Connexion à la base de données
+
+    try {
+        error_log("Données reçues pour createServices: " . print_r($data, true));
+        
+        // Vérifiez que les données nécessaires sont présentes
+        if (!isset($data['id_event']) || !isset($data['id_user']) || !isset($data['message'])) {
+            throw new Exception("Informations requises manquantes");
+        }
+
+        // Préparez la requête d'insertion
+        $sql = "INSERT INTO forums (id_event, id_user, message) VALUES (?, ?, ?)";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindParam(1, $data['id_event']);
+        $stmt->bindParam(2, $data['id_user']);
+        $stmt->bindParam(3, $data['message']);
+
+        // Exécutez la requête
+        $stmt->execute();
+
+        // Retournez une réponse JSON en cas de succès
+        $response = [
+            "status" => "success",
+            "message" => "forum créé avec succès"
+        ];
+        return $response;
+
+    } catch (Exception $e) {
+        // En cas d'erreur, enregistrez le message d'erreur dans les logs et retournez une réponse d'erreur
+        error_log("Erreur dans createEvents: " . $e->getMessage());
+        $response = [
+            "status" => "error",
+            "message" => $e->getMessage()
+        ];
+        return $response;
+    }
 }
 //---------------------------------- users ----------------------
 function getUsers() {

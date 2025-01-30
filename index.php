@@ -1,8 +1,8 @@
 <?php
 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+error_log("Méthode HTTP utilisée: " . $_SERVER['REQUEST_METHOD']);
+error_log("Données GET: " . print_r($_GET, true));
+error_log("Données POST: " . file_get_contents('php://input'));
 
 // Initialisation cURL
 $ch = curl_init(); // Crée un handle cURL
@@ -124,7 +124,7 @@ try {
                     throw new Exception("Données manquantes pour la création d'un utilisateur");
                 }
                 break;
-            
+                  //---------------//
             case 'createvent':
                 if (!empty($postData['data'])) {
                     $result = postEvent($postData['data']);
@@ -133,7 +133,7 @@ try {
                     throw new Exception("Données manquantes pour la création d'un événement");
                 }
                 break;
-    
+                 //---------------//
             case 'updateusers':
                 if (!empty($postData['data'])) {
                     $result = upUsers($postData['data']);
@@ -142,7 +142,7 @@ try {
                     throw new Exception("Données manquantes pour la mise à jour de l'utilisateur");
                 }
                 break;
-    
+                 //---------------//
             case 'updateuser':
                 if (!empty($postData['data'])) {
                     $result = upUser($postData['data']);
@@ -151,7 +151,7 @@ try {
                     throw new Exception("Données manquantes pour la mise à jour de l'utilisateur");
                 }
                 break;
-
+                //---------------//
             case 'tickets_user':
                 if (!empty($postData['data'])) {
                     $result = postTicketsUser($postData['data']);
@@ -160,7 +160,7 @@ try {
                     throw new Exception("Données manquantes pour la mise à jour de l'utilisateur");
                 }
                 break;
-
+                //---------------//
             case 'ticketsEvent':
                 if (!empty($postData['data'])) {
                     $result = postTicketsEvent($postData['data']);
@@ -169,7 +169,25 @@ try {
                     throw new Exception("Données manquantes pour la mise à jour de l'utilisateur");
                 }
                 break;
-    
+                //---------------//
+                case 'postforum':
+                    if (!empty($postData['data'])) {
+                        $result = postForum($postData['data']);
+                        sendJSON($result);
+                    } else {
+                        throw new Exception("Données manquantes pour la mise à jour de l'utilisateur");
+                    }
+                    break;
+                    //---------------//
+                case 'postforums':
+                    if (!empty($postData['data'])) {
+                        $result = postForums($postData['data']);
+                        sendJSON($result);
+                    } else {
+                        throw new Exception("Données manquantes pour la mise à jour de l'utilisateur");
+                    }
+                    break;
+                    //---------------//
             default:
                 throw new Exception("La demande POST n'est pas valide");
         }
