@@ -435,13 +435,13 @@ function getConpanyById($id_company) {
 function getForum() {
     $pdo = getcom();
     $req = "
-        SELECT f.id_forum, fs.id_forums, fs.message, u.id_user, u.name as user_name, u.first_name, u.profil,
-               e.id_event, e.title as event_title, e.description as event_description, e.image as event_image, e.date as event_date, 
-               f.created_at, f.updated_at
-        FROM forum f
-        LEFT JOIN forums fs ON fs.id_forums = f.id_forum
+        SELECT fs.*, 
+               u.id_user, u.name as user_name, u.first_name, u.profil,
+               e.id_event, e.title as event_title, e.description as event_description, 
+               e.image as event_image, e.date as event_date
+        FROM forums fs
         LEFT JOIN users u ON fs.id_user = u.id_user
-        LEFT JOIN events e ON f.id_event = e.id_event
+        LEFT JOIN events e ON fs.id_event = e.id_event
     ";
     $stmt = $pdo->prepare($req);
     $stmt->execute();
@@ -464,19 +464,19 @@ function getForum() {
                     "event_image" => URL . "image/" . $row["event_image"],
                     "event_date" => $row["event_date"]
                 ],
-                    "forums" => [],
-                    "created_at" => $row["created_at"],
-                    "updated_at" => $row["updated_at"]
-                ];
+                "forums" => [],
+                "created_at" => $row["created_at"],
+                "updated_at" => $row["updated_at"]
+            ];
         }
 
         // Ajouter le message forum au tableau des forums pour ce forum
-        if (!empty($row["id_forums"])) {
-            $forumsMap[$row["id_forum"]]["forums"][] = [
-                "id_forums" => $row["id_forums"],
-                "message" => $row["message"]
-            ];
-        }
+        $forumsMap[$row["id_forum"]]["forums"][] = [
+            "id_forums" => $row["id_forum"], // Il semble que tu veuilles utiliser "id_forum" ici
+            "message" => $row["message"],
+            "created_at" => $row["created_at"], // Ajouter les informations de la date
+            "updated_at" => $row["updated_at"]  // Ajouter les informations de la date
+        ];
     }
 
     // Convertir le forum map en tableau final
@@ -484,10 +484,12 @@ function getForum() {
         $formattedResults[] = $forum;
     }
 
+    // Envoyer les résultats au format JSON
     sendJSON([
         "forums" => $formattedResults
     ]);
 }
+
 
 function getForumById($id_forum) {
     $pdo = getcom();
