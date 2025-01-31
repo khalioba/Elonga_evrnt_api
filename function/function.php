@@ -543,6 +543,7 @@ function getForumById($id_forum) {
 
     sendJSON($formattedResults);
 }
+
 function getForumByIdEvent($id_event) {
     $pdo = getcom();
     $req = "
@@ -554,6 +555,7 @@ function getForumByIdEvent($id_event) {
     LEFT JOIN users u ON fs.id_user = u.id_user
     LEFT JOIN events e ON fs.id_event = e.id_event
     WHERE fs.id_event = :id
+    ORDER BY fs.created_at DESC, fs.id_forums DESC
     ";
     $stmt = $pdo->prepare($req);
     $stmt->bindValue(":id", $id_event, PDO::PARAM_INT);
@@ -594,6 +596,8 @@ function getForumByIdEvent($id_event) {
         ];
     }
 
+    $forums = array_reverse($forums);
+
     // Ajouter les informations de l'événement et les forums associés
     $formattedResults = [
         "forum" => $results[0]["id_forums"], // Utilisation des premiers résultats
@@ -609,8 +613,6 @@ function getForumByIdEvent($id_event) {
 
     sendJSON($formattedResults);
 }
-
-
 
 //------POST
 
@@ -687,11 +689,13 @@ function postForums($data) {
         error_log("Erreur dans createEvents: " . $e->getMessage());
         $response = [
             "status" => "error",
+
             "message" => $e->getMessage()
         ];
         return $response;
     }
 }
+
 //---------------------------------- users ----------------------
 function getUsers() {
     $pdo = getcom();
